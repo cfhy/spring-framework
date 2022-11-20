@@ -1,5 +1,6 @@
 pluginManagement {
 	repositories {
+		maven {url 'https://maven.aliyun.com/repository/public/'}
 		mavenCentral()
 		gradlePluginPortal()
 		maven { url "https://repo.spring.io/release" }
@@ -38,6 +39,7 @@ include "framework-bom"
 include "framework-docs"
 include "framework-platform"
 include "integration-tests"
+include 'spring-demo'
 
 rootProject.name = "spring"
 rootProject.children.each {project ->
@@ -58,3 +60,4 @@ settings.gradle.projectsLoaded {
 		}
 	}
 }
+
