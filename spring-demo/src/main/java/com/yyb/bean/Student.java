@@ -1,15 +1,19 @@
 package com.yyb.bean;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class Student {
-    @Value("${name:234}")
     private String name;
 
-    public Student() {
-    }
+	@Autowired
+	private Dog dog;
+
+	public Student() {
+
+	}
 
     public Student(String name) {
         this.name = name;

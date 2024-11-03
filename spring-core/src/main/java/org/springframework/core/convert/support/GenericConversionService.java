@@ -74,9 +74,10 @@ public class GenericConversionService implements ConfigurableConversionService {
 	 */
 	private static final GenericConverter NO_MATCH = new NoOpConverter("NO_MATCH");
 
-
+	//Converters是GenericConversionService的内部类，用于管理（添加、删除、查找）转换器们。也就说对ConverterRegistry接口的实现最终是委托给它去完成的，它是整个转换服务正常work的内核
 	private final Converters converters = new Converters();
 
+	//缓存用于加速查找
 	private final Map<ConverterCacheKey, GenericConverter> converterCache = new ConcurrentReferenceHashMap<>(64);
 
 
@@ -84,6 +85,7 @@ public class GenericConversionService implements ConfigurableConversionService {
 
 	@Override
 	public void addConverter(Converter<?, ?> converter) {
+		// 获取泛型类型 -> 转为ConvertiblePair
 		ResolvableType[] typeInfo = getRequiredTypeInfo(converter.getClass(), Converter.class);
 		if (typeInfo == null && converter instanceof DecoratingProxy decoratingProxy) {
 			typeInfo = getRequiredTypeInfo(decoratingProxy.getDecoratedClass(), Converter.class);
@@ -92,6 +94,7 @@ public class GenericConversionService implements ConfigurableConversionService {
 			throw new IllegalArgumentException("Unable to determine source type <S> and target type <T> for your " +
 					"Converter [" + converter.getClass().getName() + "]; does the class parameterize those types?");
 		}
+		// converter适配为GenericConverter添加
 		addConverter(new ConverterAdapter(converter, typeInfo[0], typeInfo[1]));
 	}
 
@@ -187,6 +190,7 @@ public class GenericConversionService implements ConfigurableConversionService {
 			throw new IllegalArgumentException("Source to convert from must be an instance of [" +
 					sourceType + "]; instead it was a [" + source.getClass().getName() + "]");
 		}
+		//查找匹配到一个合适的转换器,执行转换
 		GenericConverter converter = getConverter(sourceType, targetType);
 		if (converter != null) {
 			Object result = ConversionUtils.invokeConverter(converter, source, sourceType, targetType);
@@ -498,9 +502,10 @@ public class GenericConversionService implements ConfigurableConversionService {
 	 * Manages all converters registered with the service.
 	 */
 	private static class Converters {
-
+		//存取通用的转换器，并不限定转换类型，一般用于兜底
 		private final Set<GenericConverter> globalConverters = new CopyOnWriteArraySet<>();
-
+		//指定了类型对，对应的转换器们的映射关系。ConvertiblePair：表示一对，包含sourceType和targetType
+		//ConvertersForPair：这一对对应的转换器们（因为能处理一对的可能存在多个转换器），内部使用一个双端队列Deque来存储，保证顺序
 		private final Map<ConvertiblePair, ConvertersForPair> converters = new ConcurrentHashMap<>(256);
 
 		public void add(GenericConverter converter) {
@@ -508,9 +513,11 @@ public class GenericConversionService implements ConfigurableConversionService {
 			if (convertibleTypes == null) {
 				Assert.state(converter instanceof ConditionalConverter,
 						"Only conditional converters may return null convertible types");
+				//若转换器没有指定处理的类型对，就放进全局转换器列表里，用于兜底
 				this.globalConverters.add(converter);
 			}
 			else {
+				//若转换器有指定处理的类型对（可能还是多个），就放进converters里，后面查找时使用
 				for (ConvertiblePair convertiblePair : convertibleTypes) {
 					getMatchableConverters(convertiblePair).add(converter);
 				}
@@ -522,6 +529,7 @@ public class GenericConversionService implements ConfigurableConversionService {
 		}
 
 		public void remove(Class<?> sourceType, Class<?> targetType) {
+			//移除逻辑非常非常的简单，这得益于添加时候做了统一适配的抽象。
 			this.converters.remove(new ConvertiblePair(sourceType, targetType));
 		}
 
@@ -536,10 +544,12 @@ public class GenericConversionService implements ConfigurableConversionService {
 		@Nullable
 		public GenericConverter find(TypeDescriptor sourceType, TypeDescriptor targetType) {
 			// Search the full type hierarchy
+			// 找到该类型的类层次接口（父类 + 接口），注意：结果是有序列表
 			List<Class<?>> sourceCandidates = getClassHierarchy(sourceType.getType());
 			List<Class<?>> targetCandidates = getClassHierarchy(targetType.getType());
 			for (Class<?> sourceCandidate : sourceCandidates) {
 				for (Class<?> targetCandidate : targetCandidates) {
+					// 从converters、globalConverters里匹配到一个合适转换器后立马返回
 					ConvertiblePair convertiblePair = new ConvertiblePair(sourceCandidate, targetCandidate);
 					GenericConverter converter = getRegisteredConverter(sourceType, targetType, convertiblePair);
 					if (converter != null) {

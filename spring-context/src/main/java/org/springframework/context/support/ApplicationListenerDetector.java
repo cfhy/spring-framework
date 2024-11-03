@@ -69,6 +69,11 @@ class ApplicationListenerDetector implements DestructionAwareBeanPostProcessor, 
 		return bean;
 	}
 
+	/**
+	 *  会先判断bean是否是ApplicationListener类型
+	 * 	如果是通过@EventListener来声明的事件监听器,那不会进入到这个if
+	 * 	只有通过实现ApplicationListener接口这种方式的事件监听器会进入到if执行
+	 */
 	@Override
 	public Object postProcessAfterInitialization(Object bean, String beanName) {
 		if (bean instanceof ApplicationListener) {

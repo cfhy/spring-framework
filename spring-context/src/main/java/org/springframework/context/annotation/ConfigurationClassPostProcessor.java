@@ -338,9 +338,11 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	/**
 	 * Build and validate a configuration model based on the registry of
 	 * {@link Configuration} classes.
+	 * 解析配置类并注册到bean工厂
 	 */
 	public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
 		List<BeanDefinitionHolder> configCandidates = new ArrayList<>();
+		//获取所有的beanName
 		String[] candidateNames = registry.getBeanDefinitionNames();
 
 		for (String beanName : candidateNames) {
@@ -350,6 +352,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 					logger.debug("Bean definition has already been processed as a configuration class: " + beanDef);
 				}
 			}
+			//判断是否是Configuration注解的类
 			else if (ConfigurationClassUtils.checkConfigurationClassCandidate(beanDef, this.metadataReaderFactory)) {
 				configCandidates.add(new BeanDefinitionHolder(beanDef, beanName));
 			}
@@ -386,6 +389,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		// Parse each @Configuration class
+		//对配置类进行解析并扫描类封装成BeanDefinition，以及@Import方式的类的处理等操作
 		ConfigurationClassParser parser = new ConfigurationClassParser(
 				this.metadataReaderFactory, this.problemReporter, this.environment,
 				this.resourceLoader, this.componentScanBeanNameGenerator, registry);
@@ -401,11 +405,13 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			configClasses.removeAll(alreadyParsed);
 
 			// Read the model and create bean definitions based on its content
+			//读取模型并根据其内容创建bean定义
 			if (this.reader == null) {
 				this.reader = new ConfigurationClassBeanDefinitionReader(
 						registry, this.sourceExtractor, this.resourceLoader, this.environment,
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
+			//注册到bean到bean工厂
 			this.reader.loadBeanDefinitions(configClasses);
 			alreadyParsed.addAll(configClasses);
 			processConfig.tag("classCount", () -> String.valueOf(configClasses.size())).end();
@@ -433,6 +439,9 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		while (!candidates.isEmpty());
 
 		// Register the ImportRegistry as a bean in order to support ImportAware @Configuration classes
+		//注册ImportAwarebean，该接口需要配合@Import注解进行使用，
+		// 其主要作用就是配合@Enable××通过开关的形式开启某个功能时进行各项属性值的初始化工作。
+		//其中比较典型的应用场景就是@EnableRedissonHttpSession
 		if (sbr != null && !sbr.containsSingleton(IMPORT_REGISTRY_BEAN_NAME)) {
 			sbr.registerSingleton(IMPORT_REGISTRY_BEAN_NAME, parser.getImportRegistry());
 		}
@@ -452,12 +461,38 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 * any candidates are then enhanced by a {@link ConfigurationClassEnhancer}.
 	 * Candidate status is determined by BeanDefinition attribute metadata.
 	 * @see ConfigurationClassEnhancer
+	 *
+	 * 全配置类增强
+	 *
+	 * 为什么要增强？为什么很多源码中写着@Configuration(proxyBeanMethods = false),
+	 * 这主要是出去性能的考虑，proxyBeanMethods设置为flase的情况下，将不会进行代理处理，
+	 * 并且每次调用@Bean注解标注的方法时都会创建一个新的Bean实例，
+	 * 这种做法可能会稍微缩短启动时间，因为它不需要为配置类创建代理。但是还是要谨慎使用，
+	 * 因为它会改变方法的行为（并且可能最终会创建一个bean的多个实例，而不是单个实例！尤其是当与@Lazy每个调用结合使用时，会创建一个新实例，从而导致每次都是获取类似@Scope注解标注的效果）。
+	 *
+	 * @Configuration(proxyBeanMethods = false)
+	 * public class Config {
+	 *     @Bean(initMethod = "myInit",destroyMethod = "myDestory")
+	 *     public Person person(){
+	 * 		Person person = new Person();
+	 * 		System.out.println("person.Person="+person);
+	 * 		return person;
+	 *    }
+	 *
+	 *    @Bean
+	 *    public Dog dog(){
+	 * 		Person person = person();
+	 * 		System.out.println("dog.Person="+person);
+	 * 		return new Dog();
+	 *    }
+	 * }
 	 */
 	public void enhanceConfigurationClasses(ConfigurableListableBeanFactory beanFactory) {
 		StartupStep enhanceConfigClasses = this.applicationStartup.start("spring.context.config-classes.enhance");
 		Map<String, AbstractBeanDefinition> configBeanDefs = new LinkedHashMap<>();
 		for (String beanName : beanFactory.getBeanDefinitionNames()) {
 			BeanDefinition beanDef = beanFactory.getBeanDefinition(beanName);
+			// 查找全配置类
 			Object configClassAttr = beanDef.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE);
 			AnnotationMetadata annotationMetadata = null;
 			MethodMetadata methodMetadata = null;
@@ -483,6 +518,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 					}
 				}
 			}
+			// 如果指定属性是full, 则进行下面处理，该属性在前面阶段设置
 			if (ConfigurationClassUtils.CONFIGURATION_CLASS_FULL.equals(configClassAttr)) {
 				if (!(beanDef instanceof AbstractBeanDefinition abd)) {
 					throw new BeanDefinitionStoreException("Cannot enhance @Configuration bean definition '" +
@@ -494,6 +530,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 							"is a non-static @Bean method with a BeanDefinitionRegistryPostProcessor " +
 							"return type: Consider declaring such methods as 'static'.");
 				}
+				// 将符合条件的,放入configBeanDefs中
 				configBeanDefs.put(beanName, abd);
 			}
 		}
@@ -502,7 +539,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			enhanceConfigClasses.end();
 			return;
 		}
-
+		//创建一个配置类的增强器
 		ConfigurationClassEnhancer enhancer = new ConfigurationClassEnhancer();
 		for (Map.Entry<String, AbstractBeanDefinition> entry : configBeanDefs.entrySet()) {
 			AbstractBeanDefinition beanDef = entry.getValue();
@@ -510,12 +547,14 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			beanDef.setAttribute(AutoProxyUtils.PRESERVE_TARGET_CLASS_ATTRIBUTE, Boolean.TRUE);
 			// Set enhanced subclass of the user-specified bean class
 			Class<?> configClass = beanDef.getBeanClass();
+			//对类进行增强,使用cglib单例
 			Class<?> enhancedClass = enhancer.enhance(configClass, this.beanClassLoader);
 			if (configClass != enhancedClass) {
 				if (logger.isTraceEnabled()) {
 					logger.trace(String.format("Replacing bean definition '%s' existing class '%s' with " +
 							"enhanced class '%s'", entry.getKey(), configClass.getName(), enhancedClass.getName()));
 				}
+				//修改BeanClass为加强类,这里之所以不使用加强对象,是因为还需要将加强类交给spring实例化
 				beanDef.setBeanClass(enhancedClass);
 			}
 		}

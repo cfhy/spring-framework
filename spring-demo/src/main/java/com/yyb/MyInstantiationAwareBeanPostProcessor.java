@@ -22,7 +22,7 @@ public class MyInstantiationAwareBeanPostProcessor implements InstantiationAware
 
 	@Override
 	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-		System.out.println("InstantiationAwareBeanPostProcessor调用postProcessBeforeInstantiation方法");
+		System.out.println("InstantiationAwareBeanPostProcessor调用postProcessBeforeInstantiation方法,bean= "+beanName);
 		return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInitialization(bean, beanName);
 	}
 

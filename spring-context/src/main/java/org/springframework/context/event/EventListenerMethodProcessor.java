@@ -60,6 +60,7 @@ import org.springframework.util.CollectionUtils;
  * @since 4.2
  * @see EventListenerFactory
  * @see DefaultEventListenerFactory
+ *
  */
 public class EventListenerMethodProcessor
 		implements SmartInitializingSingleton, ApplicationContextAware, BeanFactoryPostProcessor {
@@ -102,7 +103,11 @@ public class EventListenerMethodProcessor
 		this.eventListenerFactories = factories;
 	}
 
-
+	/**
+	 * EventListenerMethodProcessor实现了SmartInitializingSingleton接口的afterSingletonsInstantiated()方法，
+	 * 在该方法中会筛选出每个bean中所有加了@EventListener注解的方法，
+	 * 并通过EventListenerFactory将其注册为一个ApplicationListener的instance
+	 */
 	@Override
 	public void afterSingletonsInstantiated() {
 		ConfigurableListableBeanFactory beanFactory = this.beanFactory;
@@ -148,11 +153,14 @@ public class EventListenerMethodProcessor
 		}
 	}
 
+	/**
+	 * 这里的EventListenerFactory默认使用的是DefaultEventListenerFactory，作用是将加了@EventListener注解的方法封装成为ApplicationListener对象；
+	 */
 	private void processBean(final String beanName, final Class<?> targetType) {
 		if (!this.nonAnnotatedClasses.contains(targetType) &&
 				AnnotationUtils.isCandidateClass(targetType, EventListener.class) &&
 				!isSpringContainerClass(targetType)) {
-
+			// 找到所有加了@EventListener注解的方法
 			Map<Method, EventListener> annotatedMethods = null;
 			try {
 				annotatedMethods = MethodIntrospector.selectMethods(targetType,
@@ -181,7 +189,9 @@ public class EventListenerMethodProcessor
 				for (Method method : annotatedMethods.keySet()) {
 					for (EventListenerFactory factory : factories) {
 						if (factory.supportsMethod(method)) {
+							// 利用EventListenerFactory来对加了@EventListener注解的方法生成ApplicationListener对象
 							Method methodToUse = AopUtils.selectInvocableMethod(method, context.getType(beanName));
+							//加了@EventListener注解的方法对应的是什么样的ApplicationListener,取决于factory是怎么创建的,默认使用的是DefaultEventListenerFactory
 							ApplicationListener<?> applicationListener =
 									factory.createApplicationListener(beanName, targetType, methodToUse);
 							if (applicationListener instanceof ApplicationListenerMethodAdapter) {

@@ -136,10 +136,18 @@ public abstract class ConfigurationClassUtils {
 		}
 
 		Map<String, Object> config = metadata.getAnnotationAttributes(Configuration.class.getName());
+		//类上配置了@Configuration且属性proxyBeanMethods=true则使用Spring CGLIB生成一个对应的配置增强类，
+		// 当调用@Bean注解上的方法进行实例化对象时会优先在spring容器里查找，如果存在就直接返回，否则就会走通用的Spring Bean的初始化流程
 		if (config != null && !Boolean.FALSE.equals(config.get("proxyBeanMethods"))) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_FULL);
 		}
 		else if (config != null || isConfigurationCandidate(metadata)) {
+			// 如果仅包含了一个或多个下面4种注解，则被标记为lite
+			// @Component
+			// @ComponentScan
+			// @Import
+			// @ImportResource
+			// @Bean
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_LITE);
 		}
 		else {

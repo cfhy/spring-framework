@@ -75,6 +75,14 @@ public class AnnotationBeanNameGenerator implements BeanNameGenerator {
 	private final Map<String, Set<String>> metaAnnotationTypesCache = new ConcurrentHashMap<>();
 
 
+	/**
+	 * 生成一个bean Name，
+	 * 首先根据类上的Component注解解析名称，如果没有就将类名首字母小写后作为名称
+	 * @param definition the bean definition to generate a name for
+	 * @param registry the bean definition registry that the given definition
+	 * is supposed to be registered with
+	 * @return
+	 */
 	@Override
 	public String generateBeanName(BeanDefinition definition, BeanDefinitionRegistry registry) {
 		if (definition instanceof AnnotatedBeanDefinition) {
@@ -129,6 +137,8 @@ public class AnnotationBeanNameGenerator implements BeanNameGenerator {
 	 * @param metaAnnotationTypes the names of meta-annotations on the given annotation
 	 * @param attributes the map of attributes for the given annotation
 	 * @return whether the annotation qualifies as a stereotype with component name
+	 *
+	 * 检查注解是否是既定的类型（是否是@Component、@ManagedBean、@Named）
 	 */
 	protected boolean isStereotypeWithNameValue(String annotationType,
 			Set<String> metaAnnotationTypes, @Nullable Map<String, Object> attributes) {

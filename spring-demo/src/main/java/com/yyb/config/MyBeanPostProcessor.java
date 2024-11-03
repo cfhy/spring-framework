@@ -1,4 +1,4 @@
-package com.yyb;
+package com.yyb.config;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  * @date: 2023/12/4 16:47
  * @description:
  */
-@Component
+//@Component
 public class MyBeanPostProcessor implements BeanPostProcessor {
 
     public MyBeanPostProcessor() {
@@ -21,7 +21,7 @@ public class MyBeanPostProcessor implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object arg0, String arg1)
             throws BeansException {
-        System.out.println("BeanPostProcessor接口方法postProcessBeforeInitialization对属性进行更改！");
+        System.out.println("BeanPostProcessor接口方法postProcessBeforeInitialization对属性进行更改！obj= "+arg1);
         return arg0;
     }
 

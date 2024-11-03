@@ -477,6 +477,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * Central method of this class: creates a bean instance,
 	 * populates the bean instance, applies post-processors, etc.
 	 * @see #doCreateBean
+	 *
+	 * 这个类的核心方法: 创建一个bean实例,填充bean实例，调用bean后置处理器等
 	 */
 	@Override
 	protected Object createBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
@@ -497,6 +499,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Prepare method overrides.
+		//准备方法覆写,这里又涉及到一个概念：
+		//MethodOverrides,它来自于bean定义中的<lookup-method />和<replaced-method />
 		try {
 			mbdToUse.prepareMethodOverrides();
 		}
@@ -507,6 +511,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+			//应用实例化前的前置处理器，是在正式实例化前的一种预处理方式（即在预处理阶段给BeanPostProcessors们一个机会来返回代理来代替真正的实例）
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
 				return bean;
@@ -1095,6 +1100,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		Object bean = null;
 		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
 			// Make sure bean class is actually resolved at this point.
+			//isSynthetic()是判断当前mbd是否是合成的,“合成的”是指应用程序本身定义（不是用户定义，只有在实现AOP的时候Synthetic的值才是true）
+			//hasInstantiationAwareBeanPostProcessor()是判断是否有任何InstantiationAwareBeanPostProcessors被注册叻
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
